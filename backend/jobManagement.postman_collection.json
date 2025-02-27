@@ -1,0 +1,365 @@
+{
+	"info": {
+		"_postman_id": "e1f7420d-4def-4db3-860a-a4360f431152",
+		"name": "jobManagement",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25831180"
+	},
+	"item": [
+		{
+			"name": "user",
+			"item": [
+				{
+					"name": "createUser",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"sam10@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{job}}/users/",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteUser",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/users/1efe161d-5009-478a-aed2-626f65565e4c",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"users",
+								"1efe161d-5009-478a-aed2-626f65565e4c"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "jobs",
+			"item": [
+				{
+					"name": "fetchJobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/jobs/",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "addJob",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\":\"Jr.web developer \",\r\n    \"description\":\"develop full stack applications\",\r\n    \"salary\":15000,\r\n    \"location\":\"Assam\",\r\n    \"category\":\"IT\",\r\n    \"postedById\":\"1efe161d-5009-478a-aed2-626f65565e4c\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{job}}/jobs/",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "modifyJob",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n\"salary\":20000\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{job}}/jobs/4177a6a0-7c83-4dbe-81af-5c5cdb7795c2",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"4177a6a0-7c83-4dbe-81af-5c5cdb7795c2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "bulk-upload-excel",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "",
+									"type": "file",
+									"src": "postman-cloud:///1eff53cc-0be6-4200-9357-160b28689739"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{job}}/jobs/bulk-upload",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"bulk-upload"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "jobs-over10-for-user",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/jobs/active-users-jobs",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"active-users-jobs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "jobs_groupedBy_email",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/jobs/grouped-by-email?email=sam7@gmail.com",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"grouped-by-email"
+							],
+							"query": [
+								{
+									"key": "email",
+									"value": "sam7@gmail.com"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get-list-in-excel",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var template = `\r",
+									"<style type=\"text/css\">\r",
+									"    .tftable {font-size:14px;color:#333333;width:100%;border-width: 1px;border-color: #87ceeb;border-collapse: collapse;}\r",
+									"    .tftable th {font-size:18px;background-color:#87ceeb;border-width: 1px;padding: 8px;border-style: solid;border-color: #87ceeb;text-align:left;}\r",
+									"    .tftable tr {background-color:#ffffff;}\r",
+									"    .tftable td {font-size:14px;border-width: 1px;padding: 8px;border-style: solid;border-color: #87ceeb;}\r",
+									"    .tftable tr:hover {background-color:#e0ffff;}\r",
+									"</style>\r",
+									"\r",
+									"<table class=\"tftable\" border=\"1\">\r",
+									"    <tr>\r",
+									"        <th>File Name</th>\r",
+									"        <th>Content Type</th>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>Content_Types.xml</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>_rels/.rels</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>xl/</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>xl/_rels/</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>xl/worksheets/</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>xl/theme/</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"    <tr>\r",
+									"        <td>docProps/</td>\r",
+									"        <td>application/xml</td>\r",
+									"    </tr>\r",
+									"</table>\r",
+									"`;\r",
+									"\r",
+									"function constructVisualizerPayload() {\r",
+									"    return { response: \"Visualization not supported for binary data\" }\r",
+									"}\r",
+									"\r",
+									"pm.visualizer.set(template, constructVisualizerPayload());"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/jobs/export-excel",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"export-excel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "removeJob",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{job}}/jobs/f90be12b-1d21-4723-a338-63ff417fcc63",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"jobs",
+								"f90be12b-1d21-4723-a338-63ff417fcc63"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "companyLogo",
+			"item": [
+				{
+					"name": "uploading-company-logo",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "logo",
+									"type": "file",
+									"src": "postman-cloud:///1eff546b-e67e-4350-a48f-08c35a244f5a"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{job}}/company/upload-logo",
+							"host": [
+								"{{job}}"
+							],
+							"path": [
+								"company",
+								"upload-logo"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "job",
+			"value": "http://localhost:5000/api"
+		}
+	]
+}
