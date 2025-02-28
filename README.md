@@ -11,7 +11,7 @@ Create Jobs & creation of jobs by uploading excel file : https://job-management-
 View & filter job list & download in excel file : https://job-management-rho.vercel.app/jobList
 
 Upload company's logo : https://job-management-rho.vercel.app/company-logo
-company logo url is provided as response
+company logo is saved in backend
 
 Features: 
 1. Search & filter jobs based on email,location & category 
