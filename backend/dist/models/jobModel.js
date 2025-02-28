@@ -9,17 +9,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getJobsGroupedByEmail = exports.getJobsFromActiveUsers = exports.insertJobsBulk = exports.deleteJob = exports.updateJob = exports.getJobs = exports.createJob = void 0;
+exports.getAllJobs = exports.getJobsGroupedByEmail = exports.getJobsFromActiveUsers = exports.insertJobsBulk = exports.deleteJob = exports.getJobById = exports.updateJob = exports.getJobs = exports.createJob = void 0;
 const db_1 = require("../config/db");
 /**
  * ✅ Create a new job
  */
 const createJob = (jobData) => __awaiter(void 0, void 0, void 0, function* () {
     const query = `
-        INSERT INTO jobs (title, description, salary, location, category, posted_by_id) 
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+        INSERT INTO jobs (title, description, salary, location, category, posted_by_id,posted_by_email) 
+        VALUES ($1, $2, $3, $4, $5, $6,$7) RETURNING *;
     `;
-    const values = [jobData.title, jobData.description, jobData.salary, jobData.location, jobData.category, jobData.postedById];
+    const values = [jobData.title, jobData.description, jobData.salary, jobData.location, jobData.category, jobData.posted_by_id, jobData.posted_by_email];
     const result = yield db_1.pool.query(query, values);
     return result.rows[0];
 });
@@ -31,12 +31,16 @@ const getJobs = (limit, offset, filters) => __awaiter(void 0, void 0, void 0, fu
     let query = 'SELECT * FROM jobs WHERE 1=1';
     const values = [];
     if (filters.category) {
-        query += ' AND category = $1';
+        query += ` AND category = $${values.length + 1}`;
         values.push(filters.category);
     }
     if (filters.location) {
         query += ` AND location = $${values.length + 1}`;
         values.push(filters.location);
+    }
+    if (filters.email) {
+        query += ` AND posted_by_email = $${values.length + 1}`; // ✅ Added email filtering
+        values.push(filters.email);
     }
     query += ` ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
@@ -47,23 +51,40 @@ exports.getJobs = getJobs;
 /**
  * ✅ Update job details
  */
-const updateJob = (id, jobData) => __awaiter(void 0, void 0, void 0, function* () {
+const updateJob = (id, jobData, userId) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!id.match(/^[0-9a-fA-F-]{36}$/)) {
+        throw new Error('Invalid UUID format');
+    }
     const fields = Object.keys(jobData).map((key, index) => `${key} = $${index + 1}`).join(', ');
-    const values = [...Object.values(jobData), id];
+    const values = [...Object.values(jobData), id, userId];
     if (fields.length === 0)
-        return null; // Nothing to update
-    const query = `UPDATE jobs SET ${fields} WHERE id = $${values.length} RETURNING *;`;
+        return null;
+    // ✅ Only update if the job belongs to the user
+    const query = `
+        UPDATE jobs 
+        SET ${fields}, updated_at = NOW() 
+        WHERE id = $${values.length - 1} AND posted_by_id = $${values.length}
+        RETURNING *;
+    `;
     const result = yield db_1.pool.query(query, values);
     return result.rows[0] || null;
 });
 exports.updateJob = updateJob;
 /**
- * ✅ Delete a job
+ * ✅ Fetch a job by ID (To verify ownership before deletion)
+ */
+const getJobById = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    const query = `SELECT * FROM jobs WHERE id = $1;`;
+    const result = yield db_1.pool.query(query, [id]);
+    return result.rows.length ? result.rows[0] : null;
+});
+exports.getJobById = getJobById;
+/**
+ * ✅ Delete a job (Ensures only the job owner can delete)
  */
 const deleteJob = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const query = `DELETE FROM jobs WHERE id = $1 RETURNING *`;
-    const result = yield db_1.pool.query(query, [id]);
-    return result.rows[0] || null;
+    const query = `DELETE FROM jobs WHERE id = $1;`;
+    yield db_1.pool.query(query, [id]);
 });
 exports.deleteJob = deleteJob;
 /**
@@ -96,8 +117,8 @@ exports.insertJobsBulk = insertJobsBulk;
 /**
  * ✅ Fetch unique jobs from users who have posted 10+ jobs
  */
-const getJobsFromActiveUsers = () => __awaiter(void 0, void 0, void 0, function* () {
-    const query = `
+const getJobsFromActiveUsers = (filters) => __awaiter(void 0, void 0, void 0, function* () {
+    let query = `
         SELECT DISTINCT j.*
         FROM jobs j
         JOIN users u ON j.posted_by_id = u.id
@@ -106,9 +127,32 @@ const getJobsFromActiveUsers = () => __awaiter(void 0, void 0, void 0, function*
             FROM jobs
             GROUP BY posted_by_id
             HAVING COUNT(*) >= 10
-        );
+        )
     `;
-    const result = yield db_1.pool.query(query);
+    const values = [];
+    let filterConditions = [];
+    // ✅ If filters exist, apply conditions
+    if (filters.email) {
+        filterConditions.push(`u.email = $${values.length + 1}`);
+        values.push(filters.email);
+    }
+    if (filters.location) {
+        filterConditions.push(`j.location ILIKE $${values.length + 1}`); // ✅ ILIKE for case-insensitivity
+        values.push(filters.location);
+    }
+    if (filters.category) {
+        filterConditions.push(`j.category ILIKE $${values.length + 1}`);
+        values.push(filters.category);
+    }
+    // ✅ If no filters are provided, remove `WHERE` conditions to fetch ALL jobs
+    if (filterConditions.length > 0) {
+        query += ` AND ${filterConditions.join(" AND ")}`;
+    }
+    else {
+        console.log("⚠️ No filters provided, fetching ALL jobs"); // ✅ Debugging
+    }
+    console.log("Executing SQL Query:", query, "Values:", values); // ✅ Debugging
+    const result = yield db_1.pool.query(query, values);
     return result.rows;
 });
 exports.getJobsFromActiveUsers = getJobsFromActiveUsers;
@@ -128,3 +172,33 @@ const getJobsGroupedByEmail = (email) => __awaiter(void 0, void 0, void 0, funct
     return result.rows;
 });
 exports.getJobsGroupedByEmail = getJobsGroupedByEmail;
+const getAllJobs = (filters) => __awaiter(void 0, void 0, void 0, function* () {
+    let query = `
+        SELECT DISTINCT j.*
+        FROM jobs j
+        JOIN users u ON j.posted_by_id = u.id
+    `;
+    const values = [];
+    let filterConditions = [];
+    // ✅ If filters exist, apply conditions
+    if (filters.email) {
+        filterConditions.push(`u.email = $${values.length + 1}`);
+        values.push(filters.email);
+    }
+    if (filters.location) {
+        filterConditions.push(`j.location ILIKE $${values.length + 1}`); // ✅ ILIKE for case-insensitivity
+        values.push(filters.location);
+    }
+    if (filters.category) {
+        filterConditions.push(`j.category ILIKE $${values.length + 1}`);
+        values.push(filters.category);
+    }
+    // ✅ If filters exist, apply WHERE conditions
+    if (filterConditions.length > 0) {
+        query += ` WHERE ${filterConditions.join(" AND ")}`;
+    }
+    console.log("Executing SQL Query:", query, "Values:", values); // ✅ Debugging
+    const result = yield db_1.pool.query(query, values);
+    return result.rows;
+});
+exports.getAllJobs = getAllJobs;

@@ -6,13 +6,13 @@ import { createUser, deleteUser } from '../models/userModel';
  */
 export const addUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { email } = req.body;
+        const { email,password } = req.body;
         if (!email) {
             res.status(400).json({ success: false, message: 'Email is required' });
             return;
         }
 
-        const user = await createUser(email);
+        const user = await createUser(email,password);
         if (!user) {
             res.status(409).json({ success: false, message: 'User already exists' });
             return;

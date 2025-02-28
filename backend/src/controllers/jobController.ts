@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { createJob, getJobs, updateJob, deleteJob } from '../models/jobModel';
+import { createJob, getJobs, updateJob, deleteJob, getAllJobs } from '../models/jobModel';
 import { jobSchema, updateJobSchema } from '../middlewares/validateRequest';
+import { getJobById } from '../models/jobModel'; // ✅ Fetch job before deletion
+
 import { getJobsFromActiveUsers } from '../models/jobModel';
 import { getJobsGroupedByEmail } from '../models/jobModel';
 import { generateExcelFile } from '../utils/excelExporter';
@@ -8,27 +10,37 @@ import { parseCSV } from '../utils/csvParser';
 import { parseExcel } from '../utils/excelParser';
 import fs from 'fs';
 
+interface AuthRequest extends Request {
+    user?: { id: string; email: string };
+}
+
 /**
- * ✅ Create a new job
+ * ✅ Add a new job (Requires authentication)
  */
-export const addJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const addJob = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { error } = jobSchema.validate(req.body);
-        if (error) {
-            res.status(400).json({ success: false, message: error.details[0].message });
+        if (!req.user) {
+            res.status(401).json({ success: false, message: 'Unauthorized. Please log in.' });
             return;
         }
 
-        const job = await createJob(req.body);
+        // ✅ Inject posted_by_id & posted_by_email from JWT
+        const jobData = {
+            ...req.body,
+            posted_by_id: req.user.id,
+            posted_by_email: req.user.email
+        };
+
+        const job = await createJob(jobData);
         res.status(201).json({ success: true, data: job });
     } catch (error) {
         next(error);
     }
 };
-
 /**
  * ✅ Fetch jobs with pagination & filtering
  */
+
 export const fetchJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const limit = Number(req.query.limit) || 10;
     const page = Number(req.query.page) || 1;
@@ -36,11 +48,13 @@ export const fetchJobs = async (req: Request, res: Response, next: NextFunction)
     const filters = {
         category: req.query.category as string | undefined,
         location: req.query.location as string | undefined,
+        email: req.query.email as string | undefined
     };
 
     try {
         const jobs = await getJobs(limit, offset, filters);
-        res.status(200).json({ success: true, data: jobs });
+        const filteredJobs = jobs.map(({ posted_by_id, ...rest }) => rest); // ✅ Remove posted_by_id
+        res.status(200).json({ success: true, data: filteredJobs });
     } catch (error) {
         next(error);
     }
@@ -49,21 +63,33 @@ export const fetchJobs = async (req: Request, res: Response, next: NextFunction)
 /**
  * ✅ Update job details
  */
-export const modifyJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+
+
+export const modifyJob = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
+        console.log("Received Request:", req.body);
+        console.log("User from JWT:", req.user); // ✅ Debugging step
+
+        if (!req.user) {
+            console.error("⚠️ Unauthorized: No user attached to request");
+            res.status(401).json({ success: false, message: "Unauthorized. Please log in." });
+            return;
+        }
+
         const { error } = updateJobSchema.validate(req.body);
         if (error) {
             res.status(400).json({ success: false, message: error.details[0].message });
             return;
         }
 
-        const job = await updateJob(req.params.id, req.body);
+        const job = await updateJob(req.params.id, req.body, req.user.id);
         if (!job) {
-            res.status(404).json({ success: false, message: 'Job not found' });
+            res.status(403).json({ success: false, message: "You are not authorized to update this job." });
             return;
         }
 
-        res.status(200).json({ success: true, data: job });
+        const { posted_by_id, ...filteredJob } = job;
+        res.status(200).json({ success: true, data: filteredJob });
     } catch (error) {
         next(error);
     }
@@ -72,14 +98,26 @@ export const modifyJob = async (req: Request, res: Response, next: NextFunction)
 /**
  * ✅ Delete a job
  */
-export const removeJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const removeJob = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const job = await deleteJob(req.params.id);
+        if (!req.user) {
+            res.status(401).json({ success: false, message: 'Unauthorized. Please log in.' });
+            return;
+        }
+
+        const job = await getJobById(req.params.id);
         if (!job) {
             res.status(404).json({ success: false, message: 'Job not found' });
             return;
         }
 
+        // ✅ Ensure only the job owner can delete the job
+        if (job.posted_by_id !== req.user.id) {
+            res.status(403).json({ success: false, message: 'You are not authorized to delete this job.' });
+            return;
+        }
+
+        await deleteJob(req.params.id);
         res.status(200).json({ success: true, message: 'Job deleted successfully' });
     } catch (error) {
         next(error);
@@ -94,7 +132,7 @@ export const removeJob = async (req: Request, res: Response, next: NextFunction)
 /**
  *  Handle job file upload (CSV/Excel)
  */
-export const bulkUploadJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const bulkUploadJobs = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     if (!req.file) {
         res.status(400).json({ success: false, message: 'No file uploaded' });
         return;
@@ -115,19 +153,26 @@ export const bulkUploadJobs = async (req: Request, res: Response, next: NextFunc
             return;
         }
 
-        fs.unlinkSync(filePath); // ✅ Delete file after processing
+        fs.unlinkSync(filePath);
 
-        // ✅ Validate job data before inserting
+        // ✅ Assign the logged-in user's ID and email to each job
         const validJobs = [];
         const errors = [];
 
         for (const job of jobs) {
-            const { error } = jobSchema.validate(job);
+            const jobWithUserData = {
+                ...job,
+                posted_by_id: req.user!.id, // ✅ Ensure `posted_by_id` is assigned
+                posted_by_email: req.user!.email
+            };
+
+            const { error } = jobSchema.validate(jobWithUserData);
             if (error) {
                 errors.push({ job, error: error.details[0].message });
                 continue;
             }
-            validJobs.push(job);
+
+            validJobs.push(jobWithUserData);
         }
 
         if (validJobs.length > 0) {
@@ -141,10 +186,11 @@ export const bulkUploadJobs = async (req: Request, res: Response, next: NextFunc
         });
 
     } catch (error) {
-        fs.unlinkSync(filePath); // ✅ Delete file even if there's an error
+        fs.unlinkSync(filePath);
         next(error);
     }
 };
+
 
 
 /**
@@ -152,7 +198,20 @@ export const bulkUploadJobs = async (req: Request, res: Response, next: NextFunc
  */
 export const fetchJobsFromActiveUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const jobs = await getJobsFromActiveUsers();
+        const filters: { email?: string; location?: string; category?: string } = {};
+
+        if (req.query.email) filters.email = req.query.email as string;
+        if (req.query.location) filters.location = req.query.location as string;
+        if (req.query.category) filters.category = req.query.category as string;
+
+        // ✅ Fetch jobs with filters (or all jobs if no filters provided)
+        const jobs = await getJobsFromActiveUsers(filters);
+
+        if (jobs.length === 0) {
+            res.status(404).json({ success: false, message: 'No jobs found matching filters.' });
+            return;
+        }
+
         res.status(200).json({ success: true, data: jobs });
     } catch (error) {
         next(error);
@@ -160,29 +219,41 @@ export const fetchJobsFromActiveUsers = async (req: Request, res: Response, next
 };
 
 
-
 /**
  * ✅ Export jobs from users with 10+ jobs as Excel
  */
 export const exportJobsToExcel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Fetch jobs from users who posted 10+ jobs
-        const jobs = await getJobsFromActiveUsers();
+        console.log("Raw Query Parameters:", req.query); // ✅ Check received params
+
+        const filters: { email?: string; location?: string; category?: string } = {};
+
+        if (req.query.email) filters.email = req.query.email as string;
+        if (req.query.location) filters.location = req.query.location as string;
+        if (req.query.category) filters.category = req.query.category as string;
+
+        console.log("Extracted Filters:", filters); // ✅ Check extracted filters
+
+        // ✅ Check if filters are empty
+        if (Object.keys(filters).length === 0) {
+            console.log("⚠️ No filters provided, fetching ALL jobs");
+        }
+
+        // ✅ Fetch jobs with or without filters
+        const jobs = await getAllJobs(filters);
+
+        console.log("Jobs Found:", jobs.length); // ✅ Check if jobs are found
 
         if (jobs.length === 0) {
-            res.status(404).json({ success: false, message: 'No jobs found for active users.' });
+            res.status(404).json({ success: false, message: 'No jobs found matching filters.' });
             return;
         }
 
-        // Generate Excel file
+        // ✅ Generate Excel file
         const filePath = await generateExcelFile(jobs);
 
-        // Send the file as a downloadable response
-        res.download(filePath, 'jobs.xlsx', (err) => {
-            if (err) {
-                next(err);
-            }
-            // Delete file after sending
+        res.download(filePath, 'filtered-jobs.xlsx', (err) => {
+            if (err) next(err);
             fs.unlinkSync(filePath);
         });
 
@@ -192,23 +263,29 @@ export const exportJobsToExcel = async (req: Request, res: Response, next: NextF
 };
 
 
-
 /**
  * ✅ Get jobs grouped by user's email
  */
 export const fetchJobsGroupedByEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const email = req.query.email as string | undefined; // ✅ Get email from query params
+        const email = req.query.email as string | undefined;
         const groupedJobs = await getJobsGroupedByEmail(email);
-        
+
         if (email && groupedJobs.length === 0) {
             res.status(404).json({ success: false, message: `No jobs found for email: ${email}` });
             return;
         }
 
-        res.status(200).json({ success: true, data: groupedJobs });
+        // ✅ Remove posted_by_id from each job in the response
+        const filteredGroupedJobs = groupedJobs.map(group => ({
+            email: group.email,
+            jobs: group.jobs.map(({ posted_by_id, ...rest }) => rest)
+        }));
+
+        res.status(200).json({ success: true, data: filteredGroupedJobs });
     } catch (error) {
         next(error);
     }
 };
+
 

@@ -16,12 +16,12 @@ const userModel_1 = require("../models/userModel");
  */
 const addUser = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { email } = req.body;
+        const { email, password } = req.body;
         if (!email) {
             res.status(400).json({ success: false, message: 'Email is required' });
             return;
         }
-        const user = yield (0, userModel_1.createUser)(email);
+        const user = yield (0, userModel_1.createUser)(email, password);
         if (!user) {
             res.status(409).json({ success: false, message: 'User already exists' });
             return;

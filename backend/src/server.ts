@@ -6,6 +6,7 @@ import { errorHandler } from './middlewares/errorHandler';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { companyRoutes } from './routes/companyRoutes';
+import { authRoutes } from './routes/authRoutes';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ createTables();
 app.use('/api/jobs', jobRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/company',companyRoutes) // ✅ Added user routes
+app.use('/api/auth', authRoutes); // ✅ Authentication routes
 
 // Error handling middleware
 app.use(errorHandler);

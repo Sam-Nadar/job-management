@@ -10,7 +10,8 @@ export const jobSchema = Joi.object({
     salary: Joi.number().required(),
     location: Joi.string().max(255).required(),
     category: Joi.string().max(100).required(),
-    postedById: Joi.string().uuid().required(),
+    posted_by_id: Joi.string().uuid().optional(),
+    posted_by_email: Joi.string().optional(),
 });
 
 /**

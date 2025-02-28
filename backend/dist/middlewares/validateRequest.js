@@ -14,7 +14,8 @@ exports.jobSchema = joi_1.default.object({
     salary: joi_1.default.number().required(),
     location: joi_1.default.string().max(255).required(),
     category: joi_1.default.string().max(100).required(),
-    postedById: joi_1.default.string().uuid().required(),
+    posted_by_id: joi_1.default.string().uuid().optional(),
+    posted_by_email: joi_1.default.string().optional(),
 });
 /**
  * ✅ Job update validation (partial updates allowed)
