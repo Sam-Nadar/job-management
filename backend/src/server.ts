@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { companyRoutes } from './routes/companyRoutes';
 import { authRoutes } from './routes/authRoutes';
+import path from "path";
 
 dotenv.config();
 
@@ -21,6 +22,8 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/company',companyRoutes) // ✅ Added user routes
 app.use('/api/auth', authRoutes); // ✅ Authentication routes
+
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Error handling middleware
 app.use(errorHandler);
