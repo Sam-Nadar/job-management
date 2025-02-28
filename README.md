@@ -1,5 +1,24 @@
-This is a job management api build using postgreSql & express
+The frontend is built using react & tailwind
 
+Routes:
+
+Register : https://job-management-rho.vercel.app/
+
+Login: https://job-management-rho.vercel.app/login
+
+Create Jobs & creation of jobs by uploading excel file : https://job-management-rho.vercel.app/createJobs
+
+View & filter job list & download in excel file : https://job-management-rho.vercel.app/jobList
+
+Upload company's logo : https://job-management-rho.vercel.app/company-logo
+company logo url is provided as response
+
+Features: 
+1. Search & filter jobs based on email,location & category 
+2. Pagination of Jobs in job list
+3. Separate url to upload logosThis is a job management api build using postgreSql & express
+
+The api has been changes & the documentation needs to be updated 
 I have provided postman_collection.json , use that to send requests through postman 
 Firstly set the variable to https://job-management-5dfc.onrender.com, I have used localhost so change it
 
