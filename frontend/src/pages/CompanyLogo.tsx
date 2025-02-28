@@ -1,19 +1,19 @@
 import { useState } from "react";
 import axios from "axios";
 import { showError, showSuccess } from "../utils/toast";
-import Navbar from "../components/Navbar"; // ✅ Import Navbar component
+import Navbar from "../components/Navbar"; 
 
-const API_URL = "http://localhost:5000/api/company"; // ✅ Update API URL
+const API_URL = `${import.meta.env.VITE_API_URL}/api/company`; // ✅ Update API URL
 
 const CompanyLogoUpload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("jwtToken"); // ✅ Get JWT Token
+  const token = localStorage.getItem("jwtToken"); 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]); // ✅ Store the selected file
+      setFile(e.target.files[0]); //  Store the selected file
     }
   };
 
